@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>부자재 출고</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#e2e8f0;--mut:#94a3b8;--pri:#22c55e;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:system-ui,'Malgun Gothic',sans-serif;background:var(--bg);color:var(--txt);padding:14px;max-width:560px;margin:0 auto}
+  h1{font-size:20px;margin-bottom:12px;text-align:center}
+  .hide{display:none!important}
+  input{width:100%;padding:14px;font-size:17px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--txt);margin-bottom:10px}
+  button{width:100%;padding:15px;font-size:17px;font-weight:700;border:0;border-radius:10px;background:var(--pri);color:#04210f;cursor:pointer}
+  button.gray{background:#475569;color:#fff;margin-top:8px}
+  button:disabled{opacity:.5}
+  .sub{font-size:13px;color:var(--mut);text-align:center;margin-top:10px}
+  .bar{font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.6}
+  .bar b{color:var(--txt)}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;position:relative}
+  .item .stk{position:absolute;top:14px;right:14px;font-size:15px;font-weight:700;color:var(--pri)}
+  .item .nm{font-size:20px;font-weight:800;line-height:1.25}        /* 제품명 크게 */
+  .item .sp{font-size:17px;color:#cbd5e1;margin-top:2px}            /* 규격 크게 */
+  .item .lc{font-size:13px;color:var(--mut);margin-top:5px}         /* 위치·코드 기존 */
+  .msg{padding:12px;border-radius:10px;margin:10px 0;font-size:15px;text-align:center}
+  .msg.ok{background:#14361f;color:#86efac}.msg.no{background:#3b1414;color:#fca5a5}
+  #list{margin-top:6px;max-height:60vh;overflow:auto}
+  /* 상세 = 새 화면 */
+  #detail .dnm{font-size:26px;font-weight:800;line-height:1.25}
+  #detail .dsp{font-size:20px;color:#cbd5e1;margin:4px 0}
+  #detail .dlc{font-size:13px;color:var(--mut);margin-bottom:4px}
+  #detail .dstk{font-size:16px;color:var(--pri);font-weight:700;margin:10px 0 14px}
+  label{display:block;font-size:13px;color:var(--mut);margin:2px 2px 4px}
+</style>
+</head>
+<body>
+
+<!-- ===== CONFIG ===== -->
+<script>
+  const SUPABASE_URL  = "https://pnwddiwdqbjtotwvllwe.supabase.co";
+  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBud2RkaXdkcWJqdG90d3ZsbHdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5OTU4ODAsImV4cCI6MjA5NDU3MTg4MH0.On56cFEHCV7zAtqjv6A7He6KiGox9bNocvWFkjBwmt4";
+  // 담당자 사용자명:비번  (직원 추가하세요. 예: "홍길동":"1234")
+  const USERS = { "1":"8179","2":"8178","3":"8177" };
+  const SESSION_MIN = 5;     // 접속 후 자동 로그아웃(분)
+</script>
+<!-- ================= -->
+
+<h1>📦 부자재 출고</h1>
+
+<!-- 1) 로그인 -->
+<div id="login">
+  <label>담당자(사용자명)</label>
+  <input id="u" placeholder="사용자명" autocomplete="off">
+  <label>비밀번호</label>
+  <input id="p" type="password" placeholder="비밀번호" autocomplete="off">
+  <button onclick="login()">로그인</button>
+  <div class="sub">지정된 담당자 계정으로 로그인하세요</div>
+</div>
+
+<!-- 2) 목록 -->
+<div id="app" class="hide">
+  <div id="bar" class="bar"></div>
+  <input id="q" placeholder="제품코드 · 제품명 · 규격 검색" autocomplete="off" oninput="render()">
+  <div id="cnt" class="sub"></div>
+  <div id="list"></div>
+  <button class="gray" onclick="logout()">로그아웃</button>
+</div>
+
+<!-- 3) 출고 상세 (새 화면) -->
+<div id="detail" class="hide">
+  <div class="dnm" id="d_nm"></div>
+  <div class="dsp" id="d_sp"></div>
+  <div class="dlc" id="d_lc"></div>
+  <div class="dstk" id="d_stk"></div>
+  <label>출고 수량</label>
+  <input id="qty" type="number" inputmode="decimal" min="0" step="any" placeholder="수량">
+  <label>인수자 (필수)</label>
+  <input id="who" placeholder="인수자 이름" autocomplete="off">
+  <button id="goBtn" onclick="doOut()">출고하기</button>
+  <button class="gray" onclick="back()">← 목록으로</button>
+  <div id="msg"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let sb, items = [], picked = null, me = null, sessT = null;
+const $ = id => document.getElementById(id);
+const esc = s => (s==null?'':String(s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const show = id => ['login','app','detail'].forEach(x=>$(x).classList.toggle('hide', x!==id));
+
+async function login(){
+  const u=$('u').value.trim(), p=$('p').value;
+  if(!u || USERS[u]===undefined || USERS[u]!==p){ alert('사용자명 또는 비밀번호가 틀립니다'); return; }
+  me=u;
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  // 접속 기록 + 현재/직전 접속자
+  let info={};
+  try{ const {data}=await sb.rpc('fn_login',{p_담당자:me}); info=data||{}; }catch(e){}
+  const t=info['직전시각']?new Date(info['직전시각']).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+  $('bar').innerHTML = `👤 나: <b>${esc(me)}</b> &nbsp;|&nbsp; 🟢 현재 접속: <b>${esc(info['현재접속']||me)}</b><br>`+
+                       `🕘 직전 접속자: <b>${esc(info['직전접속']||'-')}</b> ${t?'('+t+')':''} &nbsp;|&nbsp; ⏱ ${SESSION_MIN}분 후 자동 로그아웃`;
+  show('app'); load();
+  clearTimeout(sessT); sessT=setTimeout(()=>{ alert('접속 '+SESSION_MIN+'분 경과 — 자동 로그아웃'); logout(); }, SESSION_MIN*60000);
+}
+function logout(){ clearTimeout(sessT); me=null; picked=null; items=[]; $('u').value=''; $('p').value=''; $('q').value=''; show('login'); }
+
+async function load(){
+  $('cnt').textContent='불러오는 중...';
+  const { data, error } = await sb.from('v_phone_search').select('*');
+  if(error){ $('cnt').textContent='오류: '+error.message; return; }
+  items = data||[]; render();
+}
+function render(){
+  const t=$('q').value.trim().toLowerCase();
+  const F = t? items.filter(it=>(it['제품코드']||'').toLowerCase().includes(t)||(it['제품명']||'').toLowerCase().includes(t)||(it['규격']||'').toLowerCase().includes(t)) : items;
+  $('cnt').textContent=`활성 품목 ${F.length} / 전체 ${items.length}`;
+  $('list').innerHTML = F.slice(0,100).map(it=>{
+    const i=items.indexOf(it);
+    return `<div class="item" onclick="pick(${i})">
+      <span class="stk">재고 ${it['현재고']}</span>
+      <div class="nm">${esc(it['제품명'])||'(이름없음)'}</div>
+      <div class="sp">${esc(it['규격'])||'-'}</div>
+      <div class="lc">${esc(it['위치'])||''} · ${esc(it['제품코드'])}</div></div>`;
+  }).join('') || '<div class="sub">결과 없음</div>';
+}
+function pick(i){
+  picked=items[i];
+  $('d_nm').textContent=picked['제품명']||'(이름없음)';
+  $('d_sp').textContent=picked['규격']||'-';
+  $('d_lc').textContent=(picked['위치']||'')+' · '+picked['제품코드'];
+  $('d_stk').textContent=`현재고 ${picked['현재고']} ${picked['단위']||''}`;
+  $('qty').value=''; $('who').value=''; $('msg').innerHTML='';
+  show('detail'); window.scrollTo(0,0);
+}
+function back(){ picked=null; show('app'); }
+
+async function doOut(){
+  if(!picked) return;
+  const qty=parseFloat($('qty').value);
+  const who=$('who').value.trim();
+  if(!(qty>0)){ alert('출고 수량을 올바르게 입력하세요'); return; }
+  if(!who){ alert('인수자는 필수입니다'); $('who').focus(); return; }
+  const b=$('goBtn'); b.disabled=true; b.textContent='처리 중...';
+  const { error } = await sb.rpc('fn_출고', {
+    p_코드:picked['제품코드'], p_수량:qty, p_일자:new Date().toISOString().slice(0,10),
+    p_인수자:who, p_비고:'모바일출고/담당:'+me });
+  b.disabled=false; b.textContent='출고하기';
+  if(error){ $('msg').innerHTML=`<div class="msg no">❌ ${esc(error.message)}</div>`; }
+  else{
+    await load();
+    show('app');
+    $('cnt').insertAdjacentHTML('beforebegin','');
+    alert(`✅ ${picked['제품명']} ${qty} 출고 완료`);
+    picked=null;
+  }
+}
+</script>
+</body>
+</html>
