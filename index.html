@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>부자재 ERP</title>
 <style>
-  :root{--bg:#0f172a;--card:#1e293b;--ln:#334155;--tx:#e2e8f0;--mut:#94a3b8;--pri:#22c55e;--in:#3b82f6;--rd:#ef4444;}
+  :root{--bg:#ffffff;--card:#f4f6f8;--ln:#d0d7de;--tx:#0f172a;--mut:#5b6675;--pri:#22c55e;--in:#3b82f6;--rd:#ef4444;}
   *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,'Malgun Gothic',sans-serif;-webkit-tap-highlight-color:transparent}
   body{background:var(--bg);color:var(--tx);padding:10px;max-width:1500px;margin:0 auto;font-size:15px}
   .hide{display:none!important}
@@ -20,7 +20,7 @@
   table{width:100%;border-collapse:collapse;font-size:12px}
   th,td{border-bottom:1px solid var(--ln);padding:5px 6px;text-align:left;white-space:nowrap}
   th{color:var(--mut);position:sticky;top:0;background:var(--bg)}
-  tr.r{cursor:pointer}tr.r:hover td{background:#243049}
+  tr.r{cursor:pointer}tr.r:hover td{background:#eef2f7}
   .wrap{overflow:auto;max-height:74vh;border:1px solid var(--ln);border-radius:8px}
   .row2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.row2>*{flex:1;min-width:120px;margin:0}
   .modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:14px;z-index:9}
@@ -30,15 +30,22 @@
   .frow label{flex:0 0 84px;text-align:right;font-size:13px}
   .frow input,.frow select{margin-bottom:0}
   .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;text-align:center}
-  .ok{background:#14361f;color:#86efac}.no{background:#3b1414;color:#fca5a5}
+  .ok{background:#dcfce7;color:#166534}.no{background:#fee2e2;color:#b91c1c}
   .badge{padding:2px 7px;border-radius:6px;font-size:12px;font-weight:700}
-  .b-부족{background:#3b1414;color:#fca5a5}.b-정상{background:#14361f;color:#86efac}
-  .b-사용종료{background:#334155;color:#cbd5e1}.b-발주필요{background:#3b2a10;color:#fcd34d}
-  .b-발주중{background:#3b2a10;color:#fcd34d}.b-입고완료{background:#14361f;color:#86efac}
+  .b-부족{background:#fee2e2;color:#b91c1c}.b-정상{background:#dcfce7;color:#166534}
+  .b-사용종료{background:#e5e7eb;color:#374151}.b-발주필요{background:#fef3c7;color:#92400e}
+  .b-발주중{background:#fef3c7;color:#92400e}.b-입고완료{background:#dcfce7;color:#166534}
   .ctr{max-width:420px;margin:24px auto}
   .pad{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:4px 0 8px}
-  .pad button{padding:8px 0;font-size:15px;background:#334155;color:var(--tx);border:1px solid var(--ln)}
+  .pad button{padding:8px 0;font-size:15px;background:#e8edf3;color:var(--tx);border:1px solid var(--ln)}
   .pad button:active{background:var(--pri);color:#04210f}
+  .cards{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .kc{flex:1;min-width:104px;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:10px 12px;text-align:center}
+  .kc .kn{font-size:22px;font-weight:800;line-height:1.1}
+  .kc .kl{font-size:12px;color:var(--mut);margin-top:3px}
+  .kc.good{background:#dcfce7;border-color:#bbf7d0}.kc.good .kn{color:#166534}
+  .kc.bad{background:#fee2e2;border-color:#fecaca}.kc.bad .kn{color:#b91c1c}
+  .kc.warn{background:#fef3c7;border-color:#fde68a}.kc.warn .kn{color:#92400e}
 </style>
 </head>
 <body>
@@ -66,6 +73,7 @@
     <div class="bar"><span id="who"></span> <button class="g" style="padding:5px 9px" onclick="openSettings()">⚙ 설정</button> <button class="g" style="padding:5px 9px" onclick="logout()">로그아웃</button></div>
   </div>
   <div class="tabs">
+    <button id="t_대시보드" onclick="tab('대시보드')">📊 대시보드</button>
     <button id="t_제품정보" class="on" onclick="tab('제품정보')">제품정보</button>
     <button id="t_입출고" onclick="tab('입출고')">입출고</button>
     <button id="t_발주서" onclick="tab('발주서')">발주서</button>
@@ -78,6 +86,7 @@
     <button id="dlBtn" class="hide" style="flex:0 0 auto;min-width:110px" onclick="downloadXls()">⬇ 엑셀다운</button>
   </div>
   <div id="info" class="bar" style="margin-bottom:6px"></div>
+  <div id="dash"></div>
   <div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
 </div>
 
@@ -126,7 +135,7 @@ async function doLogin(){
 }
 async function enter(){
   const { data:{ user } } = await sb.auth.getUser();
-  role = (user && user.user_metadata && user.user_metadata.role) || 'out';
+  role = (user && user.app_metadata && user.app_metadata.role) || 'out';   // app_metadata=클라이언트 수정불가(변조 차단)
   const nm = (user && user.email) || '';
   $('login').classList.add('hide');
   try{ await sb.rpc('fn_login',{p_담당자:nm}); }catch(e){}
@@ -159,37 +168,73 @@ async function outGo(){ if(busy)return;
 
 // ---------- 관리자 3탭 ERP ----------
 const TABS={
+ 대시보드:{src:()=>sb.from('v_product_stock').select('*').order('제품코드',{ascending:true}), dash:true},
  제품정보:{src:()=>sb.from('v_product_stock').select('*').order('제품코드',{ascending:true}),
-   cols:['제품코드','제품명','규격','용도','비고','구매처','단위','총입고','총출고','안전재고','현재고','사용종료일','재고상태','발주상태'],
+   cols:['제품코드','제품명','규격','용도','비고','구매처','단위','총입고','총출고','안전재고','현재고','사용종료일','재고상태','출고','삭제','발주상태'],
    edit:['제품명','규격','용도','구매처','비고','단위','안전재고','사용종료일'],
    newf:['위치','제품위치','생성번호','제품명','규격','용도','구매처','비고','단위','안전재고']},
  입출고:{src:()=>sb.from('stock_txn').select('*').order('일자',{ascending:false}).order('id',{ascending:false}).limit(2000),
    cols:['일자','제품코드','제품명','규격','구분','수량','인수자','비고']},
- 발주서:{src:()=>sb.from('purchase').select('*').order('id',{ascending:false}),
+ 발주서:{src:()=>sb.from('purchase').select('*').order('발주일자',{ascending:true}).order('id',{ascending:true}),
    cols:['발주일자','제품코드','제품명','규격','발주수량','입고일자','입고수량','단위','구매처','상태','비고'],
    edit:['발주일자','발주수량','입고일자','입고수량','단위','구매처','비고'],
    newf:['제품코드','발주일자','발주수량','단위','구매처','비고']}
 };
-function tab(n){ cur=n; $('q').value=''; ['제품정보','입출고','발주서'].forEach(t=>$('t_'+t).classList.toggle('on',t===n));
-  $('addBtn').textContent = n==='입출고'?'+ 입고/출고/정정':'+ 신규';
+function tab(n){ cur=n; $('q').value=''; ['대시보드','제품정보','입출고','발주서'].forEach(t=>$('t_'+t).classList.toggle('on',t===n));
+  var isDash=n==='대시보드';
+  $('addBtn').classList.toggle('hide', isDash || n==='입출고');
+  $('addBtn').textContent = '+ 신규';
   $('pasteBtn').classList.toggle('hide', n!=='제품정보');
-  $('dlBtn').classList.toggle('hide', n!=='제품정보'); reload(); }
+  $('dlBtn').classList.toggle('hide', n!=='제품정보');
+  if(!isDash) $('dash').innerHTML='';
+  reload(); }
 async function reload(){ $('info').textContent='불러오는 중...';
   const {data:d,error}=await TABS[cur].src();
   if(error){ $('info').textContent='오류: '+error.message; return; }
   data=d||[]; if(cur==='입출고') data.reverse();   // 최신 2000건을 일자 오름차순으로 표시
   render(); }
+function renderDash(){
+  var all=data.filter(function(r){return r['제품명'];});
+  var term=$('q').value.trim().toLowerCase();
+  var rows=term?all.filter(function(r){return ['제품코드','제품명','규격'].some(function(k){return (r[k]||'').toString().toLowerCase().includes(term);});}):all;
+  var n=all.length, cnt=function(s){return all.filter(function(r){return r['재고상태']===s;}).length;};
+  var v정상=cnt('정상'), v부족=cnt('부족');
+  var v발주=all.filter(function(r){return r['발주상태']==='발주필요';}).length;
+  var v재고=all.reduce(function(s,r){return s+(Number(r['현재고'])||0);},0);
+  $('dash').innerHTML=`<div class="cards">
+    <div class="kc"><div class="kn">${n}</div><div class="kl">전체 품목</div></div>
+    <div class="kc good"><div class="kn">${v정상}</div><div class="kl">정상</div></div>
+    <div class="kc bad"><div class="kn">${v부족}</div><div class="kl">부족</div></div>
+    <div class="kc warn"><div class="kn">${v발주}</div><div class="kl">발주필요</div></div>
+    <div class="kc"><div class="kn">${v재고.toLocaleString()}</div><div class="kl">총 현재고</div></div>
+  </div>`;
+  var cols=['제품코드','제품명','규격','용도','단위','안전재고','현재고','재고상태','발주상태'];
+  $('info').textContent=`📊 대시보드 · 등록 ${n}건 · 표시 ${rows.length}건`;
+  $('thead').innerHTML='<tr>'+cols.map(function(c){return `<th>${c}</th>`;}).join('')+'</tr>';
+  $('tbody').innerHTML=rows.slice(0,1000).map(function(r){
+    var bg=r['발주상태']==='발주필요'?' style="background:#fee2e2"':(r['재고상태']==='부족'?' style="background:#fff7ed"':'');
+    var tds=cols.map(function(c){ var v=r[c]; if(v==null)v='';
+      if(c==='재고상태'||c==='발주상태'){ if(v)v=`<span class="badge b-${esc(v)}">${esc(v)}</span>`; } else v=esc(v);
+      return `<td>${v}</td>`; }).join('');
+    return `<tr${bg}>${tds}</tr>`;
+  }).join('')||`<tr><td colspan="${cols.length}" style="text-align:center;color:var(--mut)">없음</td></tr>`;
+}
 function render(){
+  if(TABS[cur]&&TABS[cur].dash) return renderDash();
   const T=TABS[cur], term=$('q').value.trim().toLowerCase();
   let rows=term?data.filter(r=>['제품코드','제품명','규격'].some(k=>(r[k]||'').toString().toLowerCase().includes(term))):data;
   $('info').textContent=`${cur} · ${rows.length}건`;
-  $('thead').innerHTML='<tr>'+T.cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  $('thead').innerHTML='<tr>'+T.cols.map(c=>`<th>${c==='발주상태'?'발주서관리':c}</th>`).join('')+'</tr>';
   const cap=cur==='입출고'?2000:400;
   $('tbody').innerHTML=rows.slice(0,cap).map(r=>{
     const di=data.indexOf(r);
     const tds=T.cols.map(c=>{ let v=r[c]; if(v==null)v='';
-      if(c==='발주상태'&&v==='발주필요'){ v=`<span class="badge b-발주필요" style="cursor:pointer;text-decoration:underline" onclick="event.stopPropagation();quickPO(${di})">발주필요 ＋</span>`; }
-      else if(c==='재고상태'||c==='발주상태'||c==='상태'){ if(v)v=`<span class="badge b-${esc(v)}">${esc(v)}</span>`; } else v=esc(v);
+      if(c==='출고'){ v=`<button class="in" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();quickOut(${di})">출고</button>`; }
+      else if(c==='삭제'){ v=`<button class="rd" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();prodTxns(${di})">삭제</button>`; }
+      else if(c==='발주상태'&&(v==='발주필요'||v==='입고완료')){ v=`<button style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();quickPO(${di})">발주</button>`; }
+      else if(c==='발주상태'&&v==='발주중'){ v=`<button style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();poIn(${di})">입고</button>`; }
+      else if(c==='발주상태'){ v=''; }   // 정상(null) 등 → 빈칸. 부족+입고완료는 위에서 [발주]=재발주 유도
+      else if(c==='재고상태'||c==='상태'){ if(v)v=`<span class="badge b-${esc(v)}">${esc(v)}</span>`; } else v=esc(v);
       return `<td>${v}</td>`; }).join('');
     const fn = cur==='입출고' ? `openTxnEdit(${di})` : `openEdit(${di})`;
     return `<tr class="r" onclick="${fn}">${tds}</tr>`;
@@ -209,8 +254,6 @@ function openEdit(di){ const T=TABS[cur], rec=data[di];
   showModal(`<h3>${cur} 수정</h3><div class="bar" style="margin-bottom:8px">${esc(rec['제품코드']||'')} ${cur==='발주서'?'(id '+rec.id+')':''}</div>
     ${T.edit.map(k=>field(k,rec[k])).join('')}<div id="m"></div>
     <button style="width:100%" onclick="saveEdit(${di})">저장</button>
-    ${cur==='제품정보'?`<button class="in" style="width:100%;margin-top:6px" onclick="quickOut(${di})">📤 이 제품 출고</button>`:''}
-    ${cur==='발주서'?`<button class="in" style="width:100%;margin-top:6px" onclick="receivePO(${di})">📥 입고처리 (재고반영+입고완료)</button>`:''}
     ${cur==='발주서'?`<button class="rd" style="width:100%;margin-top:6px" onclick="delRow(${di})">삭제</button>`:''}
     <button class="g" style="width:100%;margin-top:6px" onclick="closeModal()">닫기</button>`); }
 async function saveEdit(di){ if(busy)return; const T=TABS[cur], rec=data[di];
@@ -275,7 +318,7 @@ async function delTxn(di){ if(busy)return; var rec=data[di];
     if(error){ $('m').innerHTML=`<div class="msg no">${esc(error.message)}</div>`; return; }
     closeModal(); reload();
   } finally{ busy=false; } }
-function openNew(){ if(cur==='입출고') return openTxn(); const T=TABS[cur];
+function openNew(){ if(TABS[cur]&&TABS[cur].dash) return; if(cur==='입출고') return openTxn(); const T=TABS[cur];
   var html=T.newf.map(function(k){
     if(cur==='제품정보' && k==='위치') return `<input id="f_위치" type="hidden">`;
     if(cur==='발주서' && k==='제품코드')
@@ -356,6 +399,76 @@ async function saveOut(){ if(busy||!poRec) return;
     var {error}=await sb.rpc('fn_출고',{p_코드:cd,p_수량:qy,p_일자:todayStr(),p_인수자:wh,p_비고:'제품정보출고'});
     if(error){ $('m').innerHTML=`<div class="msg no">❌ ${esc(error.message)}</div>`; return; }
     closeModal(); reload();
+  } finally{ busy=false; } }
+
+// 제품정보 발주서관리: '발주중' 발주서에 대해 입고 잡기 (재고반영 + 해당 발주서 갱신)
+var poInRec=null;
+async function poIn(di){ if(busy)return; var pr=data[di];
+  var q=await sb.from('purchase').select('*').eq('제품코드',pr['제품코드']).order('발주일자',{ascending:false}).order('id',{ascending:false}).limit(30);
+  if(q.error){ alert('발주서 조회 실패: '+q.error.message); return; }
+  var po=(q.data||[]).find(function(x){ return x['발주수량']!=null && Number(x['입고수량']||0) < Number(x['발주수량']); });
+  if(!po){ alert('입고할 발주중 발주서가 없습니다. (발주서 탭에서 확인하세요)'); return; }
+  poInRec=po;
+  var rem=Number(po['발주수량'])-Number(po['입고수량']||0);
+  showModal(`<h3>📥 발주 입고처리</h3>
+    <div class="bar" style="margin-bottom:8px">${esc(pr['제품명']||'')} / ${esc(pr['규격']||'')}<br>발주서 #${po.id} · 발주일 ${esc((po['발주일자']||'').toString().slice(0,10))} · 발주 ${esc(po['발주수량'])} · 기입고 ${esc(po['입고수량']||0)}</div>
+    <div class="frow"><label>입고일자</label><input id="f_입고일자" type="date" value="${todayStr()}"></div>
+    <div class="frow"><label>입고수량</label><input id="f_입고수량" type="text" inputmode="none" readonly value="${rem}"></div>${padHTML('f_입고수량')}
+    <div id="m"></div>
+    <button class="in" style="width:100%" onclick="savePoIn()">입고처리 (재고반영 + 발주서 갱신)</button>
+    <button class="g" style="width:100%;margin-top:6px" onclick="closeModal()">닫기</button>`); }
+async function savePoIn(){ if(busy||!poInRec) return;
+  var qy=Number($('f_입고수량').value), dt=$('f_입고일자').value||todayStr();
+  if(!(qy>0)){ $('m').innerHTML='<div class="msg no">입고수량 확인</div>'; return; }
+  busy=true; try{
+    var ri=await sb.rpc('fn_입고',{p_코드:poInRec['제품코드'],p_수량:qy,p_일자:dt,p_인수자:null,p_비고:'발주입고'});
+    if(ri.error){ $('m').innerHTML=`<div class="msg no">입고 실패: ${esc(ri.error.message)}</div>`; return; }
+    var tot=Number(poInRec['입고수량']||0)+qy;
+    var up=await sb.from('purchase').update({'입고일자':dt,'입고수량':tot}).eq('id',poInRec.id);
+    if(up.error){ $('m').innerHTML=`<div class="msg no">발주서 갱신 실패: ${esc(up.error.message)}</div>`; return; }
+    closeModal(); reload();
+  } finally{ busy=false; } }
+
+// 제품정보 '삭제' → 그 제품코드의 입출고 내역 목록(거기서 줄별 수정/삭제 = 원장 정리)
+var ptDi=-1, ptRows=[];
+async function prodTxns(di){ ptDi=di; var rec=data[di];
+  var q=await sb.from('stock_txn').select('*').eq('제품코드',rec['제품코드']).order('일자',{ascending:true}).order('id',{ascending:true});
+  if(q.error){ alert('입출고 조회 실패: '+q.error.message); return; }
+  ptRows=q.data||[];
+  var body=ptRows.length? ptRows.map(function(t,i){
+    return `<tr><td>${esc((t['일자']||'').toString().slice(0,10))}</td><td>${esc(t['구분'])}</td><td style="text-align:right">${esc(t['수량'])}</td><td>${esc(t['인수자']||'')}</td><td>${esc(t['비고']||'')}</td><td style="white-space:nowrap"><button class="g" style="padding:3px 7px;font-size:11px" onclick="ptEdit(${i})">수정</button> <button class="rd" style="padding:3px 7px;font-size:11px" onclick="ptDel(${i})">삭제</button></td></tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--mut)">입출고 내역 없음</td></tr>`;
+  showModal(`<h3>입출고 내역 — ${esc(rec['제품코드']||'')}</h3>
+    <div class="bar" style="margin-bottom:8px">${esc(rec['제품명']||'')} / ${esc(rec['규격']||'')} · 총 ${ptRows.length}건 · 현재고 ${esc(rec['현재고'])}</div>
+    <div style="max-height:54vh;overflow:auto;border:1px solid var(--ln);border-radius:8px">
+    <table><thead><tr><th>일자</th><th>구분</th><th>수량</th><th>인수자</th><th>비고</th><th>관리</th></tr></thead>
+    <tbody>${body}</tbody></table></div>
+    <button class="g" style="width:100%;margin-top:8px" onclick="closeModal();reload()">닫기</button>`); }
+function ptEdit(i){ var t=ptRows[i]; if(!t) return;
+  showModal(`<h3>입출고 수정 — ${esc(t['제품코드']||'')}</h3>
+    <div class="bar" style="margin-bottom:8px">id ${t.id} · 현재고에 영향</div>
+    <div class="frow"><label>일자</label><input id="f_일자" type="date" value="${esc((t['일자']||'').toString().slice(0,10))}"></div>
+    <div class="frow"><label>구분</label><select id="f_구분"><option ${t['구분']==='입고'?'selected':''}>입고</option><option ${t['구분']==='출고'?'selected':''}>출고</option></select></div>
+    <div class="frow"><label>수량</label><input id="f_수량" type="text" inputmode="none" readonly value="${esc(t['수량'])}"></div>${padHTML('f_수량')}
+    <div class="frow"><label>인수자</label>${recvSel('f_인수자', t['인수자']||'')}</div>
+    <div class="frow"><label>비고</label><input id="f_비고" value="${esc(t['비고']||'')}"></div>
+    <div id="m"></div>
+    <button style="width:100%" onclick="ptSave(${i})">저장</button>
+    <button class="g" style="width:100%;margin-top:6px" onclick="prodTxns(ptDi)">목록</button>`); }
+async function ptSave(i){ if(busy)return; var t=ptRows[i]; if(!t) return;
+  var o={'일자':$('f_일자').value||null,'구분':$('f_구분').value,'수량':Number($('f_수량').value),'인수자':$('f_인수자').value||null,'비고':$('f_비고').value||null};
+  if(!(o['수량']>0)){ $('m').innerHTML='<div class="msg no">수량 확인</div>'; return; }
+  busy=true; try{
+    var {error}=await sb.from('stock_txn').update(o).eq('id',t.id);
+    if(error){ $('m').innerHTML=`<div class="msg no">${esc(error.message)}</div>`; return; }
+    prodTxns(ptDi);
+  } finally{ busy=false; } }
+async function ptDel(i){ if(busy)return; var t=ptRows[i]; if(!t) return;
+  if(!confirm(`${(t['일자']||'').toString().slice(0,10)} ${t['구분']} ${t['수량']} 삭제? 현재고가 바뀝니다. (되돌릴 수 없음)`)) return;
+  busy=true; try{
+    var {error}=await sb.from('stock_txn').delete().eq('id',t.id);
+    if(error){ alert('삭제 실패: '+error.message); return; }
+    prodTxns(ptDi);
   } finally{ busy=false; } }
 
 // 제품정보: 엑셀에서 여러 줄 복사 -> 일괄 등록/수정 (upsert)
