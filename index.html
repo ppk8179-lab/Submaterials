@@ -73,8 +73,8 @@
     <div class="bar"><span id="who"></span> <button class="g" style="padding:5px 9px" onclick="openSettings()">⚙ 설정</button> <button class="g" style="padding:5px 9px" onclick="logout()">로그아웃</button></div>
   </div>
   <div class="tabs">
-    <button id="t_대시보드" onclick="tab('대시보드')">📊 대시보드</button>
-    <button id="t_제품정보" class="on" onclick="tab('제품정보')">제품정보</button>
+    <button id="t_대시보드" class="on" onclick="tab('대시보드')">📊 대시보드</button>
+    <button id="t_제품정보" onclick="tab('제품정보')">제품정보</button>
     <button id="t_입출고" onclick="tab('입출고')">입출고</button>
     <button id="t_발주서" onclick="tab('발주서')">발주서</button>
   </div>
@@ -106,9 +106,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-let sb, role='out', cur='제품정보', data=[], codes=[], receivers=[];
+let sb, role='out', cur='대시보드', data=[], codes=[], receivers=[];
 const $=i=>document.getElementById(i);
-const esc=s=>(s==null?'':String(s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const esc=s=>(s==null?'':String(s)).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 let busy=false;
 function RDL(){ return '<datalist id="rdl">'+receivers.map(x=>`<option value="${esc(x['이름'])}">`).join('')+'</datalist>'; }
@@ -143,7 +143,7 @@ async function enter(){
   try{ const {data:rd,error:e2}=await sb.from('receiver').select('id,이름,재직').order('이름'); if(e2)console.error('receiver',e2); receivers=rd||[]; }catch(e){console.error(e);}
   if(role==='admin'){
     $('app').classList.remove('hide'); $('who').textContent='👤'+nm+' (관리자)';
-    tab('제품정보');
+    tab('대시보드');
   }else{
     $('outapp').classList.remove('hide'); $('who2').textContent='👤'+nm;
     $('ocl').innerHTML = codes.slice(0,800).map(c=>`<option value="${esc(c['제품코드'])}">${esc(c['제품명'])} ${esc(c['규격'])}</option>`).join('');
