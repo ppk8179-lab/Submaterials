@@ -21,6 +21,7 @@
   th,td{border-bottom:1px solid var(--ln);padding:5px 6px;text-align:left;white-space:nowrap}
   th{color:var(--mut);position:sticky;top:0;background:var(--bg)}
   tr.r{cursor:pointer}tr.r:hover td{background:#eef2f7}
+  .codedel{cursor:pointer;color:#b91c1c;text-decoration:underline dotted;font-weight:600}.codedel:hover{background:#fee2e2;border-radius:4px}
   .wrap{overflow:auto;max-height:74vh;border:1px solid var(--ln);border-radius:8px}
   .row2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.row2>*{flex:1;min-width:120px;margin:0}
   .modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:14px;z-index:9}
@@ -46,6 +47,39 @@
   .kc.good{background:#dcfce7;border-color:#bbf7d0}.kc.good .kn{color:#166534}
   .kc.bad{background:#fee2e2;border-color:#fecaca}.kc.bad .kn{color:#b91c1c}
   .kc.warn{background:#fef3c7;border-color:#fde68a}.kc.warn .kn{color:#92400e}
+  .kc.info{background:#dbeafe;border-color:#bfdbfe}.kc.info .kn{color:#1e40af}
+  .kc.clk{cursor:pointer}.kc.sel{outline:3px solid #475569;outline-offset:-2px}
+  /* LAYOUT(창고 배치도) */
+  .lywrap{overflow:auto;max-height:78vh;border:1px solid var(--ln);border-radius:8px;padding:8px;background:#fff}
+  .lytitle{font-weight:800;color:#334155;margin:2px 0 6px;font-size:14px}
+  table.ly{border-collapse:separate;border-spacing:3px;width:auto;font-size:11px;margin-bottom:4px}
+  table.ly td{border:1px solid var(--ln);border-radius:5px;padding:3px;width:64px;min-width:64px;max-width:64px;height:46px;vertical-align:top;overflow:hidden;background:#fbfcfe}
+  table.ly td.lyx{border:0;background:transparent}
+  table.ly td.sec{border-left:3px solid #94a3b8}
+  table.ly td.clk{cursor:pointer}
+  table.ly td.clk:hover{outline:2px solid #cbd5e1;outline-offset:-2px}
+  table.ly tr.hd td{border:0;background:transparent;font-weight:800;color:#1e293b;text-align:center;height:auto;padding:1px 0;font-size:13px}
+  .lyc{font-size:9px;color:var(--mut);line-height:1.1;white-space:nowrap;overflow:hidden}
+  .lyn{font-weight:700;font-size:11px;line-height:1.3;color:var(--tx);white-space:nowrap;overflow:hidden}
+  .lys{font-size:10px;color:#475569;line-height:1.1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  table.ly td.s부족{background:#fee2e2;border-color:#fecaca}
+  table.ly td.s사용종료{background:#64748b}
+  table.ly td.s사용종료 .lyn{color:#fff}
+  table.ly td.s사용종료 .lys,table.ly td.s사용종료 .lyc{color:#cbd5e1}
+  table.ly td.sub{background:#fff7ed;border-color:#fed7aa;cursor:pointer}
+  table.ly td.hit{outline:3px solid var(--in);outline-offset:-3px}
+  table.ly td.lyempty{background:#fcfdfe}
+  .lyplus{color:#cbd5e1;font-size:18px;font-weight:700;text-align:center;line-height:1.4}
+  table.ly td.lyempty:hover .lyplus{color:var(--pri)}
+  .lysep{height:10px}
+  /* 이동 모드 */
+  .lymovebar{background:#dbeafe;border:1px solid #93c5fd;color:#1e40af;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #mvBtn.on{background:var(--in);color:#fff}
+  table.ly td.lymfrom{outline:3px solid #f59e0b;outline-offset:-3px}
+  table.ly td.lymto{cursor:pointer}
+  table.ly td.lymto.lyempty,table.ly td.lymto.s사용종료{background:#ecfdf5;border-color:#6ee7b7}
+  table.ly td.lymto:hover{outline:3px solid var(--in);outline-offset:-3px}
+  table.ly td.lymno{opacity:.45}
 </style>
 </head>
 <body>
@@ -77,6 +111,7 @@
     <button id="t_제품정보" onclick="tab('제품정보')">제품정보</button>
     <button id="t_입출고" onclick="tab('입출고')">입출고</button>
     <button id="t_발주서" onclick="tab('발주서')">발주서</button>
+    <button id="t_LAYOUT" onclick="tab('LAYOUT')">🗺 LAYOUT</button>
   </div>
   <div class="row2">
     <input id="q" placeholder="검색 (코드·제품명·규격)" oninput="render()">
@@ -84,10 +119,11 @@
     <button id="addBtn" style="flex:0 0 auto;min-width:90px" onclick="openNew()">+ 신규</button>
     <button id="pasteBtn" class="hide" style="flex:0 0 auto;min-width:120px" onclick="openPaste()">📋 엑셀붙여넣기</button>
     <button id="dlBtn" class="hide" style="flex:0 0 auto;min-width:110px" onclick="downloadXls()">⬇ 엑셀다운</button>
+    <button id="mvBtn" class="hide" style="flex:0 0 auto;min-width:100px" onclick="toggleMove()">📦 이동이력</button>
   </div>
   <div id="info" class="bar" style="margin-bottom:6px"></div>
   <div id="dash"></div>
-  <div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  <div class="wrap" id="maintable"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
 </div>
 
 <!-- 현장 출고전용 -->
@@ -107,11 +143,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, role='out', cur='대시보드', data=[], codes=[], receivers=[];
+let lyMoveSrc=null, moveFilter=false, dashFilter='';   // 이동 모드 / 입출고 '이동이력' / 대시보드 카드 필터
 const $=i=>document.getElementById(i);
 const esc=s=>(s==null?'':String(s)).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 let busy=false;
-function RDL(){ return '<datalist id="rdl">'+receivers.map(x=>`<option value="${esc(x['이름'])}">`).join('')+'</datalist>'; }
 function recvSel(id,curv){
   var act=receivers.filter(r=>r['재직']!==false), names=act.map(r=>r['이름']);
   var o='<option value="">— 작업자 선택 —</option>';
@@ -178,38 +214,58 @@ const TABS={
  발주서:{src:()=>sb.from('purchase').select('*').order('발주일자',{ascending:true}).order('id',{ascending:true}),
    cols:['발주일자','제품코드','제품명','규격','발주수량','입고일자','입고수량','단위','구매처','상태','비고'],
    edit:['발주일자','발주수량','입고일자','입고수량','단위','구매처','비고'],
-   newf:['제품코드','발주일자','발주수량','단위','구매처','비고']}
+   newf:['제품코드','발주일자','발주수량','단위','구매처','비고']},
+ LAYOUT:{src:()=>sb.from('v_product_stock').select('*').order('제품코드',{ascending:true}), layout:true}
 };
-function tab(n){ cur=n; $('q').value=''; ['대시보드','제품정보','입출고','발주서'].forEach(t=>$('t_'+t).classList.toggle('on',t===n));
-  var isDash=n==='대시보드';
-  $('addBtn').classList.toggle('hide', isDash || n==='입출고');
+function tab(n){ cur=n; $('q').value=''; ['대시보드','제품정보','입출고','발주서','LAYOUT'].forEach(t=>$('t_'+t).classList.toggle('on',t===n));
+  var isDash=n==='대시보드', isLay=n==='LAYOUT';
+  $('addBtn').classList.toggle('hide', isDash || isLay || n==='입출고' || n==='제품정보');
   $('addBtn').textContent = '+ 신규';
   $('pasteBtn').classList.toggle('hide', n!=='제품정보');
   $('dlBtn').classList.toggle('hide', n!=='제품정보');
-  if(!isDash) $('dash').innerHTML='';
+  $('mvBtn').classList.toggle('hide', n!=='입출고');
+  if(n!=='입출고') moveFilter=false;
+  $('mvBtn').classList.toggle('on', moveFilter); $('mvBtn').textContent = moveFilter?'📦 이동이력 ✓':'📦 이동이력';
+  lyMoveSrc=null; dashFilter='';   // 탭 전환 시 진행중 이동/대시보드 필터 초기화
+  $('maintable').classList.toggle('hide', isLay);
+  if(!isDash && !isLay) $('dash').innerHTML='';
   reload(); }
 async function reload(){ $('info').textContent='불러오는 중...';
   const {data:d,error}=await TABS[cur].src();
   if(error){ $('info').textContent='오류: '+error.message; return; }
   data=d||[]; if(cur==='입출고') data.reverse();   // 최신 2000건을 일자 오름차순으로 표시
-  render(); }
+  if(cur==='발주서'){   // 통합 표 + 발주서 '현재 제품정보' 조회(하이브리드)
+    var nd=await sb.from('v_product_stock').select('제품코드,제품명,규격,단위,현재고,안전재고,구매처,발주상태').order('제품코드',{ascending:true});
+    var allp=nd.error?[]:(nd.data||[]);
+    poNeed=allp.filter(function(r){return r['발주상태']==='발주필요';});
+    poProd={}; allp.forEach(function(r){ poProd[r['제품코드']]=r; });
+  }
+  render();
+}
+function dashPick(f){ dashFilter=(dashFilter===f?'':f); renderDash(); }   // 카드 클릭 → 해당 항목만(같은 카드 다시 누르면 전체)
 function renderDash(){
-  var all=data.filter(function(r){return r['제품명'];});
+  var all=data.filter(function(r){return r['제품명'] && r['재고상태']!=='사용종료';});  // 사용종료 숨김
   var term=$('q').value.trim().toLowerCase();
-  var rows=term?all.filter(function(r){return ['제품코드','제품명','규격'].some(function(k){return (r[k]||'').toString().toLowerCase().includes(term);});}):all;
+  var base=all;
+  if(dashFilter==='정상'||dashFilter==='부족') base=all.filter(function(r){return r['재고상태']===dashFilter;});
+  else if(dashFilter==='발주필요'||dashFilter==='발주중') base=all.filter(function(r){return r['발주상태']===dashFilter;});
+  var rows=term?base.filter(function(r){return ['제품코드','제품명','규격'].some(function(k){return (r[k]||'').toString().toLowerCase().includes(term);});}):base;
   var n=all.length, cnt=function(s){return all.filter(function(r){return r['재고상태']===s;}).length;};
   var v정상=cnt('정상'), v부족=cnt('부족');
   var v발주=all.filter(function(r){return r['발주상태']==='발주필요';}).length;
+  var v발주중=all.filter(function(r){return r['발주상태']==='발주중';}).length;
   var v재고=all.reduce(function(s,r){return s+(Number(r['현재고'])||0);},0);
+  var sel=function(f){return dashFilter===f?' sel':'';};
   $('dash').innerHTML=`<div class="cards">
-    <div class="kc"><div class="kn">${n}</div><div class="kl">전체 품목</div></div>
-    <div class="kc good"><div class="kn">${v정상}</div><div class="kl">정상</div></div>
-    <div class="kc bad"><div class="kn">${v부족}</div><div class="kl">부족</div></div>
-    <div class="kc warn"><div class="kn">${v발주}</div><div class="kl">발주필요</div></div>
+    <div class="kc clk${sel('')}" onclick="dashPick('')"><div class="kn">${n}</div><div class="kl">전체 품목</div></div>
+    <div class="kc good clk${sel('정상')}" onclick="dashPick('정상')"><div class="kn">${v정상}</div><div class="kl">정상</div></div>
+    <div class="kc bad clk${sel('부족')}" onclick="dashPick('부족')"><div class="kn">${v부족}</div><div class="kl">부족</div></div>
+    <div class="kc warn clk${sel('발주필요')}" onclick="dashPick('발주필요')"><div class="kn">${v발주}</div><div class="kl">발주필요</div></div>
+    <div class="kc info clk${sel('발주중')}" onclick="dashPick('발주중')"><div class="kn">${v발주중}</div><div class="kl">발주중</div></div>
     <div class="kc"><div class="kn">${v재고.toLocaleString()}</div><div class="kl">총 현재고</div></div>
   </div>`;
   var cols=['제품코드','제품명','규격','용도','단위','안전재고','현재고','재고상태','발주상태'];
-  $('info').textContent=`📊 대시보드 · 등록 ${n}건 · 표시 ${rows.length}건`;
+  $('info').textContent=`📊 대시보드 · 등록 ${n}건 · 표시 ${rows.length}건${dashFilter?(' · 필터: '+dashFilter):''}`;
   $('thead').innerHTML='<tr>'+cols.map(function(c){return `<th>${c}</th>`;}).join('')+'</tr>';
   $('tbody').innerHTML=rows.slice(0,1000).map(function(r){
     var bg=r['발주상태']==='발주필요'?' style="background:#fee2e2"':(r['재고상태']==='부족'?' style="background:#fff7ed"':'');
@@ -219,34 +275,226 @@ function renderDash(){
     return `<tr${bg}>${tds}</tr>`;
   }).join('')||`<tr><td colspan="${cols.length}" style="text-align:center;color:var(--mut)">없음</td></tr>`;
 }
+// ===== LAYOUT(창고 실물 배치도) =====
+// 물리 격자: [섹션, 깊이] / null=빈 칸(정렬용). 깊이는 왼쪽=큰값 → 오른쪽=1 (실물과 동일)
+const LY_ROWS=[1,2,3,4,5];
+const LY_TOP=[['F',2],['F',1],['E',4],['E',3],['E',2],['E',1],['D',4],['D',3],['D',2],['D',1],['C',4],['C',3],['C',2],['C',1],['B',4],['B',3],['B',2],['B',1],['A',4],['A',3],['A',2],['A',1]];
+const LY_BOT=[null,null,['K',4],['K',3],['K',2],['K',1],['J',4],['J',3],['J',2],['J',1],['I',4],['I',3],['I',2],['I',1],null,['H',3],['H',2],['H',1],['G',4],['G',3],['G',2],['G',1]];
+const lyNorm=s=>String(s==null?'':s).trim().replace(/\s+/g,' ');
+var lyMap={}, lySubMap={};
+function lyHeader(cols){ var out='<tr class="hd">', i=0;
+  while(i<cols.length){ if(!cols[i]){ out+='<td class="lyx"></td>'; i++; continue; }
+    var L=cols[i][0], span=0; while(i+span<cols.length && cols[i+span] && cols[i+span][0]===L) span++;
+    out+='<td colspan="'+span+'">'+L+'</td>'; i+=span; }
+  return out+'</tr>'; }
+function lyTable(cols,term){ var html='<table class="ly">'+lyHeader(cols);
+  LY_ROWS.forEach(function(row){ html+='<tr>';
+    cols.forEach(function(cd,idx){
+      if(!cd){ html+='<td class="lyx"></td>'; return; }
+      var sec=cd[0], dep=cd[1], pos=sec+' '+row+'-'+dep;
+      var cls='ly'+(idx===0||!cols[idx-1]||cols[idx-1][0]!==sec?' sec':'');
+      var p=lyMap[pos], subs=lySubMap[pos], onclick='', body='', targetable=false;
+      if(p && (p['제품명']||'').trim()!=='' && p['재고상태']!=='사용종료'){   // 활성 품목만 채워진 칸으로(사용종료는 아래 빈칸 취급)
+        cls+=' clk';
+        body='<div class="lyn">'+esc(p['제품명']||'')+'</div><div class="lys">'+esc(p['규격']||'')+'</div>';
+        if(p['재고상태']==='부족') cls+=' s부족';
+        onclick=' onclick="lyEdit(\''+p.id+'\')"';
+        if(term && (pos+' '+(p['제품명']||'')+' '+(p['규격']||'')+' '+(p['제품코드']||'')).toLowerCase().includes(term)) cls+=' hit';
+      } else if(subs && subs.length){
+        cls+=' sub';
+        body='<div class="lyn">📦 '+subs.length+'품목</div><div class="lys">'+esc(subs[0]['제품명']||'')+(subs.length>1?' 외':'')+'</div>';
+        onclick=' onclick="lyShow(\''+pos+'\')"';
+        if(term && (pos.toLowerCase().includes(term) || subs.some(function(x){return ((x['제품명']||'')+' '+(x['규격']||'')+' '+(x['제품코드']||'')).toLowerCase().includes(term);}))) cls+=' hit';
+      } else {
+        cls+=' clk lyempty';                      // 빈 칸 → 신규 등록
+        onclick=' onclick="lyNew(\''+pos+'\',false)"';
+        body='<div class="lyplus">＋</div>';
+        targetable=true;
+      }
+      if(lyMoveSrc){                              // 이동 모드: 출발칸 강조, 빈/사용종료 칸만 도착대상
+        if(lyNorm(pos)===lyNorm(lyMoveSrc['제품위치'])){ cls+=' lymfrom'; onclick=''; }
+        else if(targetable){ onclick=' onclick="lyMoveTo(\''+pos+'\')"'; cls+=' lymto'; }
+        else { onclick=''; cls+=' lymno'; }
+      }
+      html+='<td class="'+cls+'"'+onclick+'><div class="lyc">'+esc(pos)+'</div>'+body+'</td>';
+    });
+    html+='</tr>'; });
+  return html+'</table>'; }
+function lyShow(cell){ var items=lySubMap[cell]||[];
+  var rows=items.map(function(x){ return '<tr><td>'+esc(x['제품위치'])+'</td><td>'+esc(x['제품명']||'')+'</td><td>'+esc(x['규격']||'')+'</td><td style="text-align:right">'+esc(x['현재고'])+'</td></tr>'; }).join('');
+  showModal('<h3>📦 '+esc(cell)+' — '+items.length+'품목</h3>'
+    +'<div style="max-height:60vh;overflow:auto;border:1px solid var(--ln);border-radius:8px"><table><thead><tr><th>위치</th><th>제품명</th><th>규격</th><th>현재고</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<button class="g" style="width:100%;margin-top:8px" onclick="closeModal()">닫기</button>'); }
+// LAYOUT 칸 클릭 → 제품정보 수정(제품정보 탭 openEdit과 동일 필드, cur 의존 없이 product 직접 수정)
+function lyEdit(id){ var rec=data.find(function(r){return String(r.id)===String(id);}); if(!rec) return;
+  var EDIT=TABS['제품정보'].edit;
+  showModal('<h3>제품정보 수정</h3><div class="bar" style="margin-bottom:8px">'+esc(rec['제품코드']||'')+' · '+esc(rec['제품위치']||'')+'</div>'
+    + EDIT.map(function(k){return field(k,rec[k]);}).join('') + '<div id="m"></div>'
+    + '<button style="width:100%" onclick="lySave(\''+esc(String(id))+'\')">저장</button>'
+    + '<button class="in" style="width:100%;margin-top:6px" onclick="lyMoveStart(\''+esc(String(id))+'\')">📦 다른 칸으로 이동</button>'
+    + '<button class="rd" style="width:100%;margin-top:6px" onclick="lyClear(\''+esc(String(id))+'\')">🧹 이 칸 비우기 (내용 삭제)</button>'
+    + '<button class="g" style="width:100%;margin-top:6px" onclick="closeModal()">닫기</button>'); }
+async function lySave(id){ if(busy)return; var rec=data.find(function(r){return String(r.id)===String(id);}); if(!rec)return;
+  busy=true; try{
+    var {error}=await sb.from('product').update(readF(TABS['제품정보'].edit)).eq('id',rec.id);
+    if(error){ $('m').innerHTML='<div class="msg no">'+esc(error.message)+'</div>'; return; }
+    closeModal(); reload();
+  } finally{ busy=false; } }
+// 제품정보 빈 줄 클릭 → LAYOUT 등록창과 동일한 창 사용(통일)
+function openNewSlot(di){ var r=data[di]; if(!r) return;
+  var pos=(r['제품위치']==null?'':String(r['제품위치'])).trim();
+  if(pos) lyNew(pos,false); else openEdit(di); }   // 위치 없으면 일반 수정창
+// 신규 등록 입력 도우미: 기존에 입력한 값들을 목록으로 제공(직접 타이핑도 가능)
+function lyNatCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'}); }   // 자연정렬: A_18 < A_23 < A_126
+function lyDistinct(key){ var s=new Set();
+  data.forEach(function(r){ var v=(r[key]==null?'':String(r[key])).trim(); if(v) s.add(v); });
+  return Array.from(s).sort(lyNatCmp); }
+function lySpecsFor(name){ var s=new Set(); name=(name==null?'':String(name)).trim();
+  data.forEach(function(r){ if((r['제품명']==null?'':String(r['제품명'])).trim()===name){ var v=(r['규격']==null?'':String(r['규격'])).trim(); if(v) s.add(v); } });
+  return Array.from(s).sort(lyNatCmp); }
+function lyOpts(arr){ return arr.map(function(v){return '<option value="'+esc(v)+'">';}).join(''); }
+function lyFillSpec(){ var nm=$('f_제품명')?$('f_제품명').value:'';
+  var specs=(nm&&nm.trim())?lySpecsFor(nm):lyDistinct('규격');   // 제품명 선택 시 그 제품 규격만, 비었으면 전체
+  var dl=$('dl_규격'); if(dl) dl.innerHTML=lyOpts(specs); }
+function lyCheckDup(){   // 신규 등록 시 같은 제품명+규격이 이미 있으면 위치와 함께 경고
+  var nm=($('f_제품명')?$('f_제품명').value:'').trim();
+  var sg=($('f_규격')?$('f_규격').value:'').trim();
+  if(!nm||!sg) return;
+  var hits=data.filter(function(r){
+    return (r['제품명']==null?'':String(r['제품명'])).trim()===nm
+        && (r['규격']==null?'':String(r['규격'])).trim()===sg
+        && !(lyNewPlan && lyNewPlan.id && String(r.id)===String(lyNewPlan.id)); });
+  if(!hits.length) return;
+  var locs=hits.map(function(r){ var p=(r['제품위치']==null?'':String(r['제품위치'])).trim()||'(위치미상)';
+    return r['재고상태']==='사용종료'?(p+' (사용종료)'):p; });
+  alert('⚠ 같은 제품·규격이 이미 있습니다.\n\n제품명: '+nm+'\n규격: '+sg+'\n위치: '+locs.join(', ')); }
+// LAYOUT 칸 신규 등록. reuse=false: 빈 칸(빈 행 있으면 채움/없으면 생성번호1 삽입)
+//                       reuse=true : 사용종료 자리 재사용 → 항상 새 생성번호(max+1)로 신규 코드 삽입
+var lyNewPlan=null;
+function lyNew(pos,reuse){
+  var sec=pos.charAt(0).toUpperCase();
+  var loc='ABCDEF'.indexOf(sec)>=0?'A열':('GHIJK'.indexOf(sec)>=0?'B열':null);
+  if(!loc){ alert('위치를 알 수 없는 칸입니다'); return; }
+  var here=data.filter(function(r){return lyNorm(r['제품위치'])===lyNorm(pos);});
+  var maxg=0; here.forEach(function(r){var g=parseInt(r['생성번호']); if(!isNaN(g)&&g>maxg)maxg=g;});
+  var emptyRow = !reuse && here.find(function(r){ return !((r['제품명']||'').trim()) && r['재고상태']!=='사용종료'; });
+  var plan, codeStr;
+  if(emptyRow){ plan={loc:loc,pos:pos,gen:null,id:emptyRow.id}; codeStr=esc(emptyRow['제품코드']||pos); }
+  else { var ng=here.length?maxg+1:1; plan={loc:loc,pos:pos,gen:ng,id:null}; codeStr=esc(pos)+'^'+ng; }
+  lyNewPlan=plan;
+  var FLD=['제품명','규격','용도','구매처','비고','단위','안전재고'];
+  var DL={'제품명':'dl_제품명','규격':'dl_규격','용도':'dl_용도','구매처':'dl_구매처','단위':'dl_단위'};   // 자동완성 연결
+  showModal('<h3>'+(reuse?'신규 코드 등록':'신규 등록')+' — '+esc(pos)+'</h3>'
+    +'<div class="bar" style="margin-bottom:8px">'+(reuse?'♻ 사용종료 자리 재사용 · ':'')+'위치 '+esc(loc)+' · 제품코드 '+codeStr+'</div>'
+    + FLD.map(function(k){return field(k,'',DL[k]);}).join('')
+    + '<datalist id="dl_제품명">'+lyOpts(lyDistinct('제품명'))+'</datalist>'
+    + '<datalist id="dl_규격"></datalist>'
+    + '<datalist id="dl_용도">'+lyOpts(lyDistinct('용도'))+'</datalist>'
+    + '<datalist id="dl_구매처">'+lyOpts(lyDistinct('구매처'))+'</datalist>'
+    + '<datalist id="dl_단위">'+lyOpts(lyDistinct('단위'))+'</datalist>'
+    + '<div id="m"></div>'
+    + '<button style="width:100%" onclick="lyNewSave()">등록</button>'
+    + '<button class="g" style="width:100%;margin-top:6px" onclick="closeModal()">닫기</button>');
+  var pn=$('f_제품명'); if(pn){ pn.addEventListener('input',lyFillSpec); pn.addEventListener('change',function(){lyFillSpec();lyCheckDup();}); }   // 제품명 바뀌면 규격 목록 갱신
+  var sg=$('f_규격'); if(sg){ sg.addEventListener('focus',lyFillSpec); sg.addEventListener('change',lyCheckDup); }                                              // 규격 누를 때 그 제품 규격만
+  lyFillSpec(); }
+async function lyNewSave(){ if(busy||!lyNewPlan)return; var pl=lyNewPlan;
+  var o=readF(['제품명','규격','용도','구매처','비고','단위','안전재고']);
+  if(!o['제품명']){ $('m').innerHTML='<div class="msg no">제품명을 입력하세요</div>'; return; }
+  if(o['안전재고']==null) o['안전재고']=0;
+  busy=true; try{
+    var res = pl.id ? await sb.from('product').update(o).eq('id',pl.id)
+                    : await sb.from('product').insert(Object.assign(o,{'위치':pl.loc,'제품위치':pl.pos,'생성번호':pl.gen}));
+    if(res.error){ $('m').innerHTML='<div class="msg no">'+esc(res.error.message)+'</div>'; return; }
+    closeModal(); reload();
+  } finally{ busy=false; } }
+// === LAYOUT 이동(방법 A: 출고+입고 원자 처리 = fn_이동 RPC) ===
+function lyMoveStart(id){ var rec=data.find(function(r){return String(r.id)===String(id);}); if(!rec) return;
+  lyMoveSrc=rec; closeModal(); render(); }                 // 이동 모드 진입 → 도착칸 클릭 대기
+function lyMoveCancel(){ lyMoveSrc=null; render(); }
+async function lyMoveTo(pos){ if(busy||!lyMoveSrc) return; var src=lyMoveSrc;
+  if(lyNorm(pos)===lyNorm(src['제품위치'])){ alert('같은 자리입니다. 다른 빈 칸을 선택하세요.'); return; }
+  var occ=data.find(function(r){return lyNorm(r['제품위치'])===lyNorm(pos) && (r['제품명']||'').trim()!=='' && r['재고상태']!=='사용종료';});
+  if(occ){ alert('그 칸엔 이미 품목이 있습니다.\n빈 칸 또는 사용종료 자리로만 이동할 수 있어요.'); return; }
+  var q=Number(src['현재고'])||0;
+  if(!confirm('['+(src['제품명']||'')+' '+(src['규격']||'')+']\n'+src['제품위치']+'  →  '+pos+'\n현재고 '+q+'개도 함께 이동합니다. 진행할까요?')) return;
+  busy=true; try{
+    var r=await sb.rpc('fn_이동',{p_src_code:src['제품코드'],p_dst_pos:pos,p_일자:todayStr()});
+    if(r.error){ alert('이동 실패: '+r.error.message); return; }
+    lyMoveSrc=null; reload();
+  } finally{ busy=false; } }
+function toggleMove(){ moveFilter=!moveFilter;   // 입출고 '이동이력 보기' 토글
+  $('mvBtn').classList.toggle('on', moveFilter); $('mvBtn').textContent = moveFilter?'📦 이동이력 ✓':'📦 이동이력'; render(); }
+// 칸 비우기(내용+발주 기록 삭제, 행/위치는 유지) — 확인암호 8179(실수방지용) + 서버 is_admin이 진짜 게이트
+async function lyClear(id){ if(busy)return; var rec=data.find(function(r){return String(r.id)===String(id);}); if(!rec)return;
+  var code=rec['제품코드'];
+  var chk=await sb.from('stock_txn').select('id').eq('제품코드',code).limit(1);   // 입출고 이력 있으면 비우기 차단
+  if(chk.error){ alert('이력 확인 실패: '+chk.error.message); return; }
+  if(chk.data && chk.data.length){ alert('"'+code+'"\n입출고 이력이 있어 비울 수 없습니다.\n쓰던 품목을 정리하려면 수정창에서 사용종료일을 입력하세요.'); return; }
+  var pc=await sb.from('purchase').select('id').eq('제품코드',code).limit(1);   // 발주 있으면 같이 삭제됨을 경고
+  var hasPO = !pc.error && pc.data && pc.data.length;
+  if(!confirm('"'+code+'" ('+(rec['제품명']||'')+' '+(rec['규격']||'')+')\n이 칸의 내용을 지워 빈 칸으로 만듭니다.'+(hasPO?'\n⚠ 이 칸의 발주 기록도 함께 삭제됩니다.':'')+'\n(칸·위치는 유지) 진행할까요?')) return;
+  var pw=prompt('비우기 암호를 입력하세요:');
+  if(pw==null) return;
+  if(pw!=='8179'){ alert('암호가 일치하지 않습니다. 취소되었습니다.'); return; }
+  busy=true; try{
+    var r=await sb.rpc('fn_제품비우기',{p_code:code});
+    if(r.error){ alert('비우기 실패: '+r.error.message); return; }
+    closeModal(); reload();
+  } finally{ busy=false; } }
+function renderLayout(){
+  lyMap={}; lySubMap={};
+  data.forEach(function(r){ var pos=lyNorm(r['제품위치']); if(!pos) return;
+    var sm=pos.match(/^([A-K]) (\d+)-(\d+)-(\d+)$/);
+    if(sm){ var cell=sm[1]+' '+sm[2]+'-'+sm[3]; (lySubMap[cell]=lySubMap[cell]||[]).push(r); return; }  // 깊은 슬롯은 셀맵 제외
+    var ex=lyMap[pos];
+    if(!ex){ lyMap[pos]=r; return; }
+    var act=function(x){ return (x['제품명']||'').trim()!=='' && x['재고상태']!=='사용종료'; };  // 같은 칸 다행 → 활성 우선
+    if(act(r)&&!act(ex)) lyMap[pos]=r; else if(act(r)===act(ex)) lyMap[pos]=r; });
+  Object.keys(lySubMap).forEach(function(k){ lySubMap[k].sort(function(a,b){
+    var na=parseInt((String(a['제품위치']).match(/-(\d+)$/)||[])[1]||0), nb=parseInt((String(b['제품위치']).match(/-(\d+)$/)||[])[1]||0); return na-nb; }); });
+  var term=$('q').value.trim().toLowerCase();
+  var filled=data.filter(function(r){return r['제품명'];}).length;
+  $('info').textContent='🗺 LAYOUT · 등록 '+data.length+'칸 · 품목 '+filled+'건'+(term?' · 검색 강조':'');
+  var moveBar = lyMoveSrc ? '<div class="lymovebar">📦 <b>'+esc(lyMoveSrc['제품명']||'')+'</b> ('+esc(lyMoveSrc['제품위치']||'')+') 이동 중 — 도착할 빈 칸을 클릭하세요 <button class="rd" style="padding:3px 9px;font-size:12px" onclick="lyMoveCancel()">취소</button></div>' : '';
+  $('dash').innerHTML= moveBar + '<div class="lywrap">'
+    +'<div class="lytitle">A열 (앞)</div>'+lyTable(LY_TOP,term)
+    +'<div class="lysep"></div><div class="lytitle">B열 (뒤)</div>'+lyTable(LY_BOT,term)
+    +'</div>'; }
 function render(){
+  if(TABS[cur]&&TABS[cur].layout) return renderLayout();
   if(TABS[cur]&&TABS[cur].dash) return renderDash();
+  if(cur==='발주서') return renderPO();
   const T=TABS[cur], term=$('q').value.trim().toLowerCase();
   let rows=term?data.filter(r=>['제품코드','제품명','규격'].some(k=>(r[k]||'').toString().toLowerCase().includes(term))):data;
+  if(cur==='입출고' && moveFilter) rows=rows.filter(r=>String(r['비고']||'').indexOf('이동')>=0);   // 이동이력 보기
   $('info').textContent=`${cur} · ${rows.length}건`;
-  $('thead').innerHTML='<tr>'+T.cols.map(c=>`<th>${c==='발주상태'?'발주서관리':c}</th>`).join('')+'</tr>';
+  $('thead').innerHTML='<tr>'+T.cols.map(c=>`<th>${c==='발주상태'?'발주관리':c}</th>`).join('')+'</tr>';
   const cap=cur==='입출고'?2000:400;
   $('tbody').innerHTML=rows.slice(0,cap).map(r=>{
     const di=data.indexOf(r);
     const tds=T.cols.map(c=>{ let v=r[c]; if(v==null)v='';
-      if(c==='출고'){ v=`<button class="in" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();quickOut(${di})">출고</button>`; }
-      else if(c==='삭제'){ v=`<button class="rd" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();prodTxns(${di})">삭제</button>`; }
+      if(c==='출고'){ v= r['재고상태']==='사용종료' ? `<button class="in" disabled style="padding:4px 9px;font-size:11px;opacity:.3;cursor:not-allowed">출고</button>` : `<button class="in" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();quickOut(${di})">출고</button>`; }
+      else if(c==='삭제'){ v= r['재고상태']==='사용종료' ? `<button class="rd" disabled style="padding:4px 9px;font-size:11px;opacity:.3;cursor:not-allowed">삭제</button>` : `<button class="rd" style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();prodTxns(${di})">삭제</button>`; }
       else if(c==='발주상태'&&(v==='발주필요'||v==='입고완료')){ v=`<button style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();quickPO(${di})">발주</button>`; }
       else if(c==='발주상태'&&v==='발주중'){ v=`<button style="padding:4px 9px;font-size:11px" onclick="event.stopPropagation();poIn(${di})">입고</button>`; }
       else if(c==='발주상태'){ v=''; }   // 정상(null) 등 → 빈칸. 부족+입고완료는 위에서 [발주]=재발주 유도
+      else if(c==='제품코드'&&cur==='제품정보'){ v= Number(r['생성번호'])>=2 ? `<span class="codedel" title="재사용 코드 삭제(이력 없을 때만)" onclick="event.stopPropagation();delCode(${di})">${esc(v)}</span>` : esc(v); }  // 원본(^1)·기본슬롯 보호, 재사용(^2~)만 삭제
       else if(c==='재고상태'||c==='상태'){ if(v)v=`<span class="badge b-${esc(v)}">${esc(v)}</span>`; } else v=esc(v);
       return `<td>${v}</td>`; }).join('');
-    const fn = cur==='입출고' ? `openTxnEdit(${di})` : `openEdit(${di})`;
+    const empty = cur==='제품정보' && !((r['제품명']==null?'':String(r['제품명'])).trim());   // 빈 자리 → LAYOUT 등록창과 동일
+    const fn = cur==='입출고' ? `openTxnEdit(${di})` : (empty ? `openNewSlot(${di})` : `openEdit(${di})`);
     return `<tr class="r" onclick="${fn}">${tds}</tr>`;
   }).join('')||`<tr><td colspan="${T.cols.length}" style="text-align:center;color:var(--mut)">없음</td></tr>`;
 }
 function showModal(h){ $('boxc').innerHTML=h; $('modal').classList.remove('hide'); }
 function closeModal(){ $('modal').classList.add('hide'); }
-function field(k,val){
+function field(k,val,dl){
   if(k==='위치') return `<div class="frow"><label>${k}</label><select id="f_${k}"><option ${val==='A열'?'selected':''}>A열</option><option ${val==='B열'?'selected':''}>B열</option></select></div>`;
   if(k.includes('수량')) return `<div class="frow"><label>${k}</label><input id="f_${k}" type="text" inputmode="none" readonly value="${esc(val==null?'':val)}"></div>`+padHTML('f_'+k);
   const t=(k==='안전재고'||k==='생성번호')?'number':(k.includes('일자')||k==='사용종료일'?'date':'text');
-  return `<div class="frow"><label>${k}</label><input id="f_${k}" type="${t}" value="${esc(val==null?'':val)}"></div>`;
+  const la=dl?` list="${dl}"`:'';   // 데이터목록(자동완성) 연결 — 직접 타이핑도 가능
+  return `<div class="frow"><label>${k}</label><input id="f_${k}" type="${t}"${la} value="${esc(val==null?'':val)}"></div>`;
 }
 function readF(keys){ const o={}; keys.forEach(k=>{ let v=$('f_'+k).value; if(v==='')v=null;
   if((k.includes('수량')||k==='안전재고'||k==='생성번호')&&v!=null)v=Number(v); o[k]=v; }); return o; }
@@ -269,19 +517,26 @@ async function delRow(di){ if(busy)return; if(!confirm('삭제할까요? (되돌
     closeModal(); reload();
   } finally{ busy=false; } }
 
-// 발주서: 입고처리 = 재고에 입고 반영(fn_입고) + 발주에 입고일자/수량 기록
-async function receivePO(di){ if(busy)return; var rec=data[di];
-  var qy=Number($('f_입고수량').value||$('f_발주수량').value||0);
-  if(!(qy>0)){ alert('입고수량(없으면 발주수량) 확인'); return; }
-  if(!confirm(`${rec['제품코드']} 입고 ${qy} 처리? (현재고 반영 + 발주 입고완료)`)) return;
+// 제품정보: 제품코드 클릭 → 코드 영구삭제. 단 입출고/발주 이력 있으면 차단(FK·이력보존)
+async function delCode(di){ if(busy)return; var rec=data[di]; if(!rec) return; var code=rec['제품코드'];
+  if(!(Number(rec['생성번호'])>=2)){ alert('원본 코드(생성번호 1)·기본 슬롯은 삭제할 수 없습니다.\n재사용 코드(^2 이상)만 삭제할 수 있습니다.'); return; }
+  var t=await sb.from('stock_txn').select('id').eq('제품코드',code).limit(1);
+  if(t.error){ alert('이력 확인 실패: '+t.error.message); return; }
+  if(t.data && t.data.length){ alert('"'+code+'"\n입출고 이력이 있어 삭제할 수 없습니다.\n(사용을 끝내려면 수정창에서 사용종료일을 입력하세요)'); return; }
+  var pu=await sb.from('purchase').select('id').eq('제품코드',code).limit(1);
+  if(pu.error){ alert('이력 확인 실패: '+pu.error.message); return; }
+  if(pu.data && pu.data.length){ alert('"'+code+'"\n발주 이력이 있어 삭제할 수 없습니다.'); return; }
+  var pw=prompt('"'+code+'" 제품코드를 영구 삭제합니다. (되돌릴 수 없음)\n삭제 암호를 입력하세요:');
+  if(pw==null) return;
+  if(pw!=='8179'){ alert('암호가 일치하지 않습니다. 삭제가 취소되었습니다.'); return; }
   busy=true; try{
-    var today=todayStr();
-    var ri=await sb.rpc('fn_입고',{p_코드:rec['제품코드'],p_수량:qy,p_일자:today,p_인수자:null,p_비고:'발주입고'});
-    if(ri.error){ $('m').innerHTML=`<div class="msg no">입고 실패: ${esc(ri.error.message)}</div>`; return; }
-    var up=await sb.from('purchase').update({'입고일자':($('f_입고일자').value||today),'입고수량':qy}).eq('id',rec.id);
-    if(up.error){ $('m').innerHTML=`<div class="msg no">발주 갱신 실패: ${esc(up.error.message)}</div>`; return; }
-    closeModal(); reload();
+    var res=await sb.from('product').delete().eq('id',rec.id).select('id');
+    if(res.error){ alert('삭제 실패: '+res.error.message); return; }
+    if(!res.data || !res.data.length){ alert('삭제되지 않았습니다.\n관리자 권한이 없거나 삭제 정책(erp_product_del.sql)이 적용되지 않았습니다.'); return; }
+    reload();
   } finally{ busy=false; } }
+
+// (receivePO 제거 — 미사용. 발주입고는 poIn → savePoIn → fn_발주입고 경로 사용)
 
 // 입출고: 줄 클릭 -> 수정/삭제 (관리자만, 통장 무결성 완화 - 확인창)
 function openTxnEdit(di){ var rec=data[di];
@@ -357,8 +612,45 @@ async function saveNew(){ if(busy)return; const T=TABS[cur]; var o=readF(T.newf)
     closeModal(); reload();
   } finally{ busy=false; } }
 
-let poRec=null;
-function quickPO(di){ poRec=data[di]; var r=poRec;
+let poRec=null; var poNeed=[], poProd={};   // poNeed: 발주필요 목록 / poProd: 제품코드→현재 제품정보(조회)
+// 발주서 탭: '발주 필요'(부족·미발주) + '발주서'(주문) 를 한 표로 통합 표시
+function renderPO(){
+  var term=$('q').value.trim().toLowerCase();
+  var match=function(r){ return ['제품코드','제품명','규격'].some(function(k){return (r[k]||'').toString().toLowerCase().includes(term);}); };
+  var needRows=term?poNeed.filter(match):poNeed;          // 발주 필요(v_product_stock)
+  var ordRows =term?data.filter(match):data;              // 발주서(purchase)
+  $('dash').innerHTML='';                                  // 패널 제거 → 표 하나로 통합
+  $('info').textContent='발주서 · 발주필요 '+needRows.length+'건 / 발주 '+ordRows.length+'건';
+  var cols=['제품코드','제품명','규격','현재고','발주일자','발주수량','입고수량','구매처','처리','상태'];
+  $('thead').innerHTML='<tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
+  var need=needRows.map(function(r,i){
+    return '<tr style="background:#fffbeb">'
+      +'<td>'+esc(r['제품코드'])+'</td><td>'+esc(r['제품명']||'')+'</td><td>'+esc(r['규격']||'')+'</td>'
+      +'<td style="text-align:right;color:#b91c1c;font-weight:700">'+esc(r['현재고'])+'</td>'
+      +'<td></td><td></td><td></td><td>'+esc(r['구매처']||'')+'</td>'
+      +'<td><button style="padding:3px 9px;font-size:11px" onclick="poNeedOrder('+i+')">발주</button></td>'
+      +'<td><span class="badge b-발주필요">발주필요</span></td></tr>';
+  }).join('');
+  var ord=ordRows.map(function(r){
+    var di=data.indexOf(r), st=r['상태']||'';
+    var p=poProd[r['제품코드']];                          // 현재 제품정보(중앙 조회) — 발주서 복사본 대신
+    var nm=p?(p['제품명']||''):(r['제품명']||'');         // 제품 있으면 현재명(비웠으면 빈칸), 없으면 복사본
+    var sp=p?(p['규격']||''):(r['규격']||'');
+    var nmCell=nm?esc(nm):'<span style="color:#b91c1c">(빈 칸)</span>';
+    return '<tr class="r" onclick="openEdit('+di+')">'
+      +'<td>'+esc(r['제품코드']||'')+'</td><td>'+nmCell+'</td><td>'+esc(sp)+'</td>'
+      +'<td></td>'
+      +'<td>'+esc((r['발주일자']||'').toString().slice(0,10))+'</td>'
+      +'<td style="text-align:right">'+esc(r['발주수량'])+'</td>'
+      +'<td style="text-align:right">'+esc(r['입고수량']==null?'':r['입고수량'])+'</td>'
+      +'<td>'+esc(r['구매처']||'')+'</td><td></td>'
+      +'<td>'+(st?'<span class="badge b-'+esc(st)+'">'+esc(st)+'</span>':'')+'</td></tr>';
+  }).join('');
+  $('tbody').innerHTML=(need+ord)||'<tr><td colspan="'+cols.length+'" style="text-align:center;color:var(--mut)">없음</td></tr>';
+}
+function poNeedOrder(i){ var r=poNeed[i]; if(!r) return; poRec=r; poModal(); }
+function quickPO(di){ poRec=data[di]; poModal(); }
+function poModal(){ var r=poRec;
   showModal(`<h3>신규 발주</h3>
     <div class="bar" style="margin-bottom:8px">${esc(r['제품명']||'')} / ${esc(r['규격']||'')} · 현재고 ${esc(r['현재고'])} · 안전 ${esc(r['안전재고'])}</div>
     <div class="frow"><label>제품코드</label><input id="f_제품코드" value="${esc(r['제품코드']||'')}" readonly></div>
@@ -401,7 +693,7 @@ async function saveOut(){ if(busy||!poRec) return;
     closeModal(); reload();
   } finally{ busy=false; } }
 
-// 제품정보 발주서관리: '발주중' 발주서에 대해 입고 잡기 (재고반영 + 해당 발주서 갱신)
+// 제품정보 발주관리: '발주중' 발주서에 대해 입고 잡기 (재고반영 + 해당 발주서 갱신)
 var poInRec=null;
 async function poIn(di){ if(busy)return; var pr=data[di];
   var q=await sb.from('purchase').select('*').eq('제품코드',pr['제품코드']).order('발주일자',{ascending:false}).order('id',{ascending:false}).limit(30);
@@ -421,11 +713,8 @@ async function savePoIn(){ if(busy||!poInRec) return;
   var qy=Number($('f_입고수량').value), dt=$('f_입고일자').value||todayStr();
   if(!(qy>0)){ $('m').innerHTML='<div class="msg no">입고수량 확인</div>'; return; }
   busy=true; try{
-    var ri=await sb.rpc('fn_입고',{p_코드:poInRec['제품코드'],p_수량:qy,p_일자:dt,p_인수자:null,p_비고:'발주입고'});
-    if(ri.error){ $('m').innerHTML=`<div class="msg no">입고 실패: ${esc(ri.error.message)}</div>`; return; }
-    var tot=Number(poInRec['입고수량']||0)+qy;
-    var up=await sb.from('purchase').update({'입고일자':dt,'입고수량':tot}).eq('id',poInRec.id);
-    if(up.error){ $('m').innerHTML=`<div class="msg no">발주서 갱신 실패: ${esc(up.error.message)}</div>`; return; }
+    var r=await sb.rpc('fn_발주입고',{p_pur_id:poInRec.id,p_수량:qy,p_일자:dt});   // 재고반영+발주갱신 원자처리
+    if(r.error){ $('m').innerHTML=`<div class="msg no">입고 실패: ${esc(r.error.message)}</div>`; return; }
     closeModal(); reload();
   } finally{ busy=false; } }
 
@@ -498,6 +787,7 @@ async function savePaste(){ if(busy)return;
       if((k==='생성번호'||k==='안전재고') && v!=null) v=Number(v);
       o[k]=v; });
     if(o['안전재고']==null) o['안전재고']=0;
+    if(o['생성번호']==null) o['생성번호']=1;          // ^ 뒤 빈 코드 방지(기본 1)
     arr.push(o);
   });
   if(!arr.length){ $('m').innerHTML='<div class="msg no">유효한 행이 없습니다 (위치 A열/B열, 제품위치 필수)</div>'; return; }
@@ -554,9 +844,10 @@ async function addReceiver(){
   await loadRecv(); openSettings(); }
 async function delReceiver(i){
   var c=receivers[i]; if(!c) return;
-  var chk=await sb.from('stock_txn').select('id').eq('인수자',c['이름']).limit(1);
+  var nm=(c['이름']||'').trim();
+  var chk=await sb.from('stock_txn').select('id').ilike('인수자',nm).limit(1);   // 입출고 내역(입고·출고 모두) 사용 여부
   if(chk.error){ $('m').innerHTML=`<div class="msg no">${esc(chk.error.message)}</div>`; return; }
-  if(chk.data && chk.data.length){ $('m').innerHTML=`<div class="msg no">"${esc(c['이름'])}" 은(는) 출고이력에 사용되어 삭제할 수 없습니다 — "퇴사"를 사용하세요.</div>`; return; }
+  if(chk.data && chk.data.length){ $('m').innerHTML=`<div class="msg no">"${esc(c['이름'])}" 은(는) 입출고 내역에 사용되어 삭제할 수 없습니다 — "퇴사"를 사용하세요.</div>`; return; }
   if(!confirm(c['이름']+' 완전 삭제할까요?')) return;
   var {error}=await sb.from('receiver').delete().eq('id',c.id);
   if(error){ $('m').innerHTML=`<div class="msg no">${esc(error.message)}</div>`; return; }
